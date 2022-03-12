@@ -44,14 +44,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     http.headers = urllib3.make_headers(basic_auth=args.basic_auth)
 
     notifs = get_data(NOTIFS_URL)
-    print(f"There are {len(notifs)} unread notifications")
-    for notif in notifs:
-        subject_type = notif["subject"]["type"]
-        if subject_type != "PullRequest":
-            continue
+    notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
 
-        subject_url = notif["subject"]["url"]
-        pr = get_data(subject_url)
+    for notif in notifs:
+        pr = get_data(notif["subject"]["url"])
 
         if args.hide_closed and pr["state"] == "closed":
             continue
