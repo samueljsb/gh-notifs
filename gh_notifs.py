@@ -33,12 +33,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         dest="referrer_id",
         help="Notification referrer ID",
     )
-    parser.add_argument(
-        "--hide-closed",
-        action="store_true",
-        default=False,
-        help="Only show open PRs",
-    )
     args = parser.parse_args(argv)
 
     http.headers = urllib3.make_headers(basic_auth=args.basic_auth)
@@ -48,9 +42,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for notif in notifs:
         pr = get_data(notif["subject"]["url"])
-
-        if args.hide_closed and pr["state"] == "closed":
-            continue
 
         if pr["state"] == "open":
             if pr["draft"]:
