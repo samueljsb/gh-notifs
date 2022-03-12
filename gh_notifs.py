@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+from enum import Enum
 from typing import Any
+from typing import NamedTuple
 from typing import Sequence
 
 import humanize
@@ -14,12 +16,85 @@ http = urllib3.PoolManager()
 NOTIFS_URL = "https://api.github.com/notifications"
 
 
+class Status(Enum):
+    DRAFT = "DRAFT"
+    OPEN = "OPEN"
+    MERGED = "MERGED"
+    CLOSED = "CLOSED"
+
+
+class PR(NamedTuple):
+    title: str
+    author: str
+
+    state: str
+    draft: bool
+    merged: bool
+
+    owner: str
+    repo: str
+    number: str
+    html_url: str
+
+    updated_at_str: str
+
+    commits: int
+    files: int
+    additions: int
+    deletions: int
+
+    @property
+    def status(self) -> Status:
+        if self.state == "open":
+            if self.draft:
+                return Status.DRAFT
+            else:
+                return Status.OPEN
+        elif self.state == "closed":
+            if self.merged:
+                return Status.MERGED
+            else:
+                return Status.CLOSED
+        else:
+            raise ValueError(f"Unrecognised state: {self.state}")
+
+    @property
+    def ref(self) -> str:
+        return f"{self.owner}/{self.repo}#{self.number}"
+
+    @property
+    def updated_at(self) -> datetime.datetime:
+        return datetime.datetime.fromisoformat(self.updated_at_str.rstrip("Z"))
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> PR:
+        return cls(
+            title=data["title"],
+            author=data["user"]["login"],
+            state=data["state"],
+            draft=data["draft"],
+            merged=data["merged"],
+            owner=data["base"]["repo"]["owner"]["login"],
+            repo=data["base"]["repo"]["name"],
+            number=data["number"],
+            html_url=data["html_url"],
+            updated_at_str=data["updated_at"],
+            commits=data["commits"],
+            files=data["changed_files"],
+            additions=data["additions"],
+            deletions=data["deletions"],
+        )
+
+
 def get_data(url: str) -> Any:
     resp = http.request("GET", url)
     return json.loads(resp.data)
 
 
-def _href(url: str, text: str) -> str:
+def _pr_url(text: str, url: str, referrer_id: str | None) -> str:
+    if referrer_id:
+        url += f"?notification_referrer_id={referrer_id}"
+
     return f"\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\"
 
 
@@ -45,45 +120,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
 
     for notif in notifs:
-        pr = get_data(notif["subject"]["url"])
+        pr_data = get_data(notif["subject"]["url"])
+        pr = PR.from_json(pr_data)
 
-        if pr["state"] == "open":
-            if pr["draft"]:
-                status = " \x1b[2m[D]\x1b[0m"
-            else:
-                status = ""
-        elif pr["state"] == "closed":
-            if pr["merged"]:
-                status = " \x1b[35m[M]\x1b[39;2m"
-            else:
-                status = " \x1b[31m[C]\x1b[39;2m"
+        if pr.status == Status.OPEN:
+            status = ""
+        elif pr.status == Status.DRAFT:
+            status = " \x1b[2m[D]\x1b[0m"
+        elif pr.status == Status.MERGED:
+            status = " \x1b[35m[M]\x1b[39;2m"
+        elif pr.status == Status.CLOSED:
+            status = " \x1b[31m[C]\x1b[39;2m"
         else:
-            status = f" [{pr['state'].upper()}]"
+            raise ValueError(f"{pr.status=}")
 
-        updated_at = pr["updated_at"]
-        if updated_at.endswith("Z"):
-            updated_at = updated_at[:-1]
-        updated_at = datetime.datetime.fromisoformat(updated_at)
+        ref_with_url = _pr_url(pr.ref, pr.html_url, args.referrer_id)
 
-        html_url = pr["html_url"]
-        if args.referrer_id:
-            html_url += f"?notification_referrer_id={args.referrer_id}"
-
-        ref = (
-            pr["base"]["repo"]["owner"]["login"]
-            + "/"
-            + pr["base"]["repo"]["name"]
-            + "#"
-            + str(pr["number"])
-        )
-
-        print(f"{status} \x1b[1m{pr['title']}\x1b[0m ({_href(html_url, ref)})")
+        print(f"{status} \x1b[1m{pr.title}\x1b[0m ({ref_with_url})")
         print(
             "    "
-            f"by {pr['user']['login']} "
-            f"-- updated {humanize.naturaltime(updated_at)} "
-            f"-- ({pr['commits']} commits, {pr['changed_files']} files) "
-            f"[\x1b[92m+{pr['additions']}\x1b[0m \x1b[91m-{pr['deletions']}\x1b[0m] "
+            f"by {pr.author} "
+            f"-- updated {humanize.naturaltime(pr.updated_at)} "
+            f"-- ({pr.commits} commits, {pr.files} files) "
+            f"[\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m] "
         )
         print()
 
