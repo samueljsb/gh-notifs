@@ -74,8 +74,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             updated_at = updated_at[:-1]
         updated_at = datetime.datetime.fromisoformat(updated_at)
 
+        html_url = pr["html_url"]
         if args.referrer_id:
-            subject_url += f"?notification_referrer_id={args.referrer_id}"
+            html_url += f"?notification_referrer_id={args.referrer_id}"
 
         ref = (
             pr["base"]["repo"]["owner"]["login"]
@@ -93,7 +94,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"-- ({pr['commits']} commits, {pr['changed_files']} files) "
             f"[\x1b[92m+{pr['additions']}\x1b[0m \x1b[91m-{pr['deletions']}\x1b[0m] "
         )
-        print(f"    \x1b[2m{subject_url}\x1b[0m")
+        print(f"    \x1b[2m{html_url}\x1b[0m")
 
     return 0
 
