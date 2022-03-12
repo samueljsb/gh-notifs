@@ -77,11 +77,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.referrer_id:
             subject_url += f"?notification_referrer_id={args.referrer_id}"
 
-        print(f"{status} \x1b[1m{pr['title']}\x1b[0m ({pr['user']['login']})")
+        ref = (
+            pr["base"]["repo"]["owner"]["login"]
+            + "/"
+            + pr["base"]["repo"]["name"]
+            + "#"
+            + str(pr["number"])
+        )
+
+        print(f"{status} \x1b[1m{pr['title']}\x1b[0m ({ref})")
         print(
             "    "
-            f"{humanize.naturaltime(updated_at)} "
-            f"({pr['commits']} commits, {pr['changed_files']} files) "
+            f"by {pr['user']['login']} "
+            f"-- updated {humanize.naturaltime(updated_at)} "
+            f"-- ({pr['commits']} commits, {pr['changed_files']} files) "
             f"[\x1b[92m+{pr['additions']}\x1b[0m \x1b[91m-{pr['deletions']}\x1b[0m] "
         )
         print(f"    \x1b[2m{subject_url}\x1b[0m")
