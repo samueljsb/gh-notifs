@@ -58,16 +58,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if pr["state"] == "open":
             if pr["draft"]:
-                status = "\x1b[2m[DRAFT] \x1b[0;1m"
+                status = " \x1b[2m[D]\x1b[0m"
             else:
-                status = "\x1b[1m"
+                status = ""
         elif pr["state"] == "closed":
             if pr["merged"]:
-                status = "\x1b[35m[MERGED] \x1b[0;2m"
+                status = " \x1b[35m[M]\x1b[39;2m"
             else:
-                status = "\x1b[31m[CLOSED] \x1b[0;2m"
+                status = " \x1b[31m[C]\x1b[39;2m"
         else:
-            status = f"[{pr['state'].upper()}] \x1b[1m"
+            status = f" [{pr['state'].upper()}]"
 
         updated_at = pr["updated_at"]
         if updated_at.endswith("Z"):
@@ -77,15 +77,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.referrer_id:
             subject_url += f"?notification_referrer_id={args.referrer_id}"
 
-        print("---")
-        print(f"{status} {pr['title']}\x1b[0m ({pr['user']['login']})")
+        print(f"{status} \x1b[1m{pr['title']}\x1b[0m ({pr['user']['login']})")
         print(
             "    "
             f"{humanize.naturaltime(updated_at)} "
             f"({pr['commits']} commits, {pr['changed_files']} files) "
-            f"[\x1b[32m+{pr['additions']}\x1b[0m \x1b[31m-{pr['deletions']}\x1b[0m] "
+            f"[\x1b[92m+{pr['additions']}\x1b[0m \x1b[91m-{pr['deletions']}\x1b[0m] "
         )
-        print("    " + subject_url)
+        print(f"    \x1b[2m{subject_url}\x1b[0m")
 
     return 0
 
