@@ -19,6 +19,10 @@ def get_data(url: str) -> Any:
     return json.loads(resp.data)
 
 
+def _href(url: str, text: str) -> str:
+    return f"\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -73,7 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             + str(pr["number"])
         )
 
-        print(f"{status} \x1b[1m{pr['title']}\x1b[0m ({ref})")
+        print(f"{status} \x1b[1m{pr['title']}\x1b[0m ({_href(html_url, ref)})")
         print(
             "    "
             f"by {pr['user']['login']} "
@@ -81,7 +85,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"-- ({pr['commits']} commits, {pr['changed_files']} files) "
             f"[\x1b[92m+{pr['additions']}\x1b[0m \x1b[91m-{pr['deletions']}\x1b[0m] "
         )
-        print(f"    \x1b[2m{html_url}\x1b[0m")
+        print()
 
     return 0
 
