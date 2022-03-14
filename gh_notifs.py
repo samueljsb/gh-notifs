@@ -91,13 +91,6 @@ def get_data(url: str) -> Any:
     return json.loads(resp.data)
 
 
-def _pr_url(text: str, url: str, referrer_id: str | None) -> str:
-    if referrer_id:
-        url += f"?notification_referrer_id={referrer_id}"
-
-    return f"\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\"
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -134,9 +127,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             raise ValueError(f"{pr.status=}")
 
-        ref_with_url = _pr_url(pr.ref, pr.html_url, args.referrer_id)
+        url = pr.html_url
+        if args.referrer_id:
+            url += f"?notification_referrer_id={args.referrer_id}"
 
-        print(f"{status} \x1b[1m{pr.title}\x1b[0m ({ref_with_url})")
+        print(f"{status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})")
         print(
             "    "
             f"by {pr.author} "
@@ -144,6 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"-- ({pr.commits} commits, {pr.files} files) "
             f"[\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m] "
         )
+        print(f"    \x1b[2m{url}\x1b[0m")
         print()
 
     return 0
