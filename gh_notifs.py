@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import datetime
 import json
-import urllib.request
 from enum import Enum
 from typing import Any
 from typing import NamedTuple
 from typing import Sequence
 
 import humanize
+import urllib3
+
+http = urllib3.PoolManager()
 
 NOTIFS_URL = "https://api.github.com/notifications"
 
@@ -85,13 +86,9 @@ class PR(NamedTuple):
         )
 
 
-def get_data(url: str, basic_auth: str) -> Any:
-    headers = {
-        "authorization": "Basic " + base64.b64encode(basic_auth.encode()).decode()
-    }
-    req = urllib.request.Request(url, headers=headers)
-    data = urllib.request.urlopen(req).read().decode()
-    return json.loads(data)
+def get_data(url: str) -> Any:
+    resp = http.request("GET", url)
+    return json.loads(resp.data)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -110,11 +107,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    notifs = get_data(NOTIFS_URL, args.basic_auth)
+    http.headers = urllib3.make_headers(basic_auth=args.basic_auth)
+
+    notifs = get_data(NOTIFS_URL)
     notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
 
     for notif in notifs:
-        pr_data = get_data(notif["subject"]["url"], args.basic_auth)
+        pr_data = get_data(notif["subject"]["url"])
         pr = PR.from_json(pr_data)
 
         if pr.status == Status.OPEN:
