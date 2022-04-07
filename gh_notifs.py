@@ -25,9 +25,6 @@ class Status(Enum):
 
 class MergeStatus(Enum):
     CLEAN = "CLEAN"  # can be merged
-    BLOCKED = "BLOCKED"  # blocked by CI or review
-    DIRTY = "DIRTY"  # has merge conflict
-
     UNKNOWN = "UNKNOWN"
 
 
@@ -71,11 +68,7 @@ class PR(NamedTuple):
     def merge_status(self) -> MergeStatus:
         if self.mergeable_state == "clean":
             return MergeStatus.CLEAN
-        elif self.mergeable_state == "blocked":
-            return MergeStatus.BLOCKED
-        elif self.mergeable_state == "dirty":
-            return MergeStatus.DIRTY
-        elif self.mergeable_state == "unknown":
+        elif self.mergeable_state in {"blocked", "dirty", "unknown", "unstable"}:
             return MergeStatus.UNKNOWN
         else:
             raise ValueError(f"Unrecognised mergeable state: {self.mergeable_state}")
