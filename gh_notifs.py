@@ -23,6 +23,14 @@ class Status(Enum):
     CLOSED = "CLOSED"
 
 
+class MergeStatus(Enum):
+    CLEAN = "CLEAN"  # can be merged
+    BLOCKED = "BLOCKED"  # blocked by CI or review
+    DIRTY = "DIRTY"  # has merge conflict
+
+    UNKNOWN = "UNKNOWN"
+
+
 class PR(NamedTuple):
     title: str
     author: str
@@ -30,6 +38,7 @@ class PR(NamedTuple):
     state: str
     draft: bool
     merged: bool
+    mergeable_state: str
 
     owner: str
     repo: str
@@ -59,6 +68,19 @@ class PR(NamedTuple):
             raise ValueError(f"Unrecognised state: {self.state}")
 
     @property
+    def merge_status(self) -> MergeStatus:
+        if self.mergeable_state == "clean":
+            return MergeStatus.CLEAN
+        elif self.mergeable_state == "blocked":
+            return MergeStatus.BLOCKED
+        elif self.mergeable_state == "dirty":
+            return MergeStatus.DIRTY
+        elif self.mergeable_state == "unknown":
+            return MergeStatus.UNKNOWN
+        else:
+            raise ValueError(f"Unrecognised mergeable state: {self.mergeable_state}")
+
+    @property
     def ref(self) -> str:
         return f"{self.owner}/{self.repo}#{self.number}"
 
@@ -74,6 +96,7 @@ class PR(NamedTuple):
             state=data["state"],
             draft=data["draft"],
             merged=data["merged"],
+            mergeable_state=data["mergeable_state"],
             owner=data["base"]["repo"]["owner"]["login"],
             repo=data["base"]["repo"]["name"],
             number=data["number"],
@@ -117,7 +140,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         pr = PR.from_json(pr_data)
 
         if pr.status == Status.OPEN:
-            status = ""
+            if pr.merge_status == MergeStatus.CLEAN:
+                status = "  \x1b[92m\x1b[0m "
+            else:
+                status = ""
         elif pr.status == Status.DRAFT:
             status = " \x1b[2m[D]\x1b[0m"
         elif pr.status == Status.MERGED:
