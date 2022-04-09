@@ -134,7 +134,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if pr.status == Status.OPEN:
             if pr.merge_status == MergeStatus.CLEAN:
-                status = "  \x1b[92m\x1b[0m "
+                status = "  \x1b[92m\uf00c\x1b[0m "
             else:
                 status = ""
         elif pr.status == Status.DRAFT:
