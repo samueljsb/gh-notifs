@@ -68,7 +68,13 @@ class PR(NamedTuple):
     def merge_status(self) -> MergeStatus:
         if self.mergeable_state == "clean":
             return MergeStatus.CLEAN
-        elif self.mergeable_state in {"blocked", "dirty", "unknown", "unstable"}:
+        elif self.mergeable_state in {
+            "behind",
+            "blocked",
+            "dirty",
+            "unknown",
+            "unstable",
+        }:
             return MergeStatus.UNKNOWN
         else:
             raise ValueError(f"Unrecognised mergeable state: {self.mergeable_state}")
