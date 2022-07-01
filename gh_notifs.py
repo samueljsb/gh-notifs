@@ -25,6 +25,7 @@ class Status(Enum):
 
 class MergeStatus(Enum):
     CLEAN = "CLEAN"  # can be merged
+    AUTO_MERGE = "AUTO_MERGE"  # will be merged automatically
     UNKNOWN = "UNKNOWN"
 
 
@@ -36,6 +37,7 @@ class PR(NamedTuple):
     draft: bool
     merged: bool
     mergeable_state: str
+    auto_merge: bool
 
     owner: str
     repo: str
@@ -68,6 +70,8 @@ class PR(NamedTuple):
     def merge_status(self) -> MergeStatus:
         if self.mergeable_state == "clean":
             return MergeStatus.CLEAN
+        elif self.auto_merge:
+            return MergeStatus.AUTO_MERGE
         elif self.mergeable_state in {
             "behind",
             "blocked",
@@ -96,6 +100,7 @@ class PR(NamedTuple):
             draft=data["draft"],
             merged=data["merged"],
             mergeable_state=data["mergeable_state"],
+            auto_merge=bool(data["auto_merge"]),
             owner=data["base"]["repo"]["owner"]["login"],
             repo=data["base"]["repo"]["name"],
             number=data["number"],
@@ -141,6 +146,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if pr.status == Status.OPEN:
             if pr.merge_status == MergeStatus.CLEAN:
                 status = "  \x1b[92m\uf00c\x1b[0m "
+            elif pr.merge_status == MergeStatus.AUTO_MERGE:
+                status = "  \u23e9"
             else:
                 status = ""
         elif pr.status == Status.DRAFT:
