@@ -126,17 +126,17 @@ def get_data(url: str) -> Any:
 def display_pr(pr: PR, username: str, referrer_id: str) -> str:
     if pr.status == Status.OPEN:
         if pr.merge_status == MergeStatus.CLEAN:
-            status = "  \x1b[92m\uf00c\x1b[0m "
+            status = "\x1b[92m\uf00c\x1b[0m "
         elif pr.merge_status == MergeStatus.AUTO_MERGE:
-            status = "  \u23e9"
+            status = "\u23e9"
         else:
             status = ""
     elif pr.status == Status.DRAFT:
-        status = " \x1b[2m[D]\x1b[0m"
+        status = "\x1b[2m[D]\x1b[0m"
     elif pr.status == Status.MERGED:
-        status = " \x1b[35m[M]\x1b[39;2m"
+        status = "\x1b[35m[M]\x1b[39;2m"
     elif pr.status == Status.CLOSED:
-        status = " \x1b[31m[C]\x1b[39;2m"
+        status = "\x1b[31m[C]\x1b[39;2m"
     else:
         raise ValueError(f"{pr.status=}")
 
