@@ -123,6 +123,42 @@ def get_data(url: str) -> Any:
     return json.loads(resp.data)
 
 
+def display_pr(pr: PR, username: str, referrer_id: str) -> str:
+    if pr.status == Status.OPEN:
+        if pr.merge_status == MergeStatus.CLEAN:
+            status = "  \x1b[92m\uf00c\x1b[0m "
+        elif pr.merge_status == MergeStatus.AUTO_MERGE:
+            status = "  \u23e9"
+        else:
+            status = ""
+    elif pr.status == Status.DRAFT:
+        status = " \x1b[2m[D]\x1b[0m"
+    elif pr.status == Status.MERGED:
+        status = " \x1b[35m[M]\x1b[39;2m"
+    elif pr.status == Status.CLOSED:
+        status = " \x1b[31m[C]\x1b[39;2m"
+    else:
+        raise ValueError(f"{pr.status=}")
+
+    url = pr.html_url
+    if referrer_id:
+        url += f"?notification_referrer_id={referrer_id}"
+
+    if pr.author == username:
+        author = f"\x1b[33m{pr.author}\x1b[0m"
+    else:
+        author = pr.author
+
+    if username in pr.requested_reviewers:
+        status += "\x1b[33;1m\u25cf\x1b[0m"
+
+    return f"""\
+{status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
+    by {author} -- updated {humanize.naturaltime(pr.updated_at)} -- ({pr.commits} commits, {pr.files} files) [\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m]
+     \x1b[2m{url}\x1b[0m
+"""  # noqa: E501
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -148,45 +184,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         pr_data = get_data(notif["subject"]["url"])
         pr = PR.from_json(pr_data)
 
-        if pr.status == Status.OPEN:
-            if pr.merge_status == MergeStatus.CLEAN:
-                status = "  \x1b[92m\uf00c\x1b[0m "
-            elif pr.merge_status == MergeStatus.AUTO_MERGE:
-                status = "  \u23e9"
-            else:
-                status = ""
-        elif pr.status == Status.DRAFT:
-            status = " \x1b[2m[D]\x1b[0m"
-        elif pr.status == Status.MERGED:
-            status = " \x1b[35m[M]\x1b[39;2m"
-        elif pr.status == Status.CLOSED:
-            status = " \x1b[31m[C]\x1b[39;2m"
-        else:
-            raise ValueError(f"{pr.status=}")
-
-        url = pr.html_url
-        if args.referrer_id:
-            url += f"?notification_referrer_id={args.referrer_id}"
-
         username, *_ = args.basic_auth.partition(":")
-        if pr.author == username:
-            author = f"\x1b[33m{pr.author}\x1b[0m"
-        else:
-            author = pr.author
 
-        if username in pr.requested_reviewers:
-            status += "\x1b[33;1m\u25cf\x1b[0m"
-
-        print(f"{status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})")
-        print(
-            "    "
-            f"by {author} "
-            f"-- updated {humanize.naturaltime(pr.updated_at)} "
-            f"-- ({pr.commits} commits, {pr.files} files) "
-            f"[\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m] "
-        )
-        print(f"    \x1b[2m{url}\x1b[0m")
-        print()
+        print(display_pr(pr, username, args.referrer_id))
 
     return 0
 
