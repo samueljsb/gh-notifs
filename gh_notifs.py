@@ -46,6 +46,8 @@ class PR(NamedTuple):
 
     updated_at_str: str
 
+    requested_reviewers: list[str]
+
     commits: int
     files: int
     additions: int
@@ -106,6 +108,9 @@ class PR(NamedTuple):
             number=data["number"],
             html_url=data["html_url"],
             updated_at_str=data["updated_at"],
+            requested_reviewers=[
+                reviewer["login"] for reviewer in data["requested_reviewers"]
+            ],
             commits=data["commits"],
             files=data["changed_files"],
             additions=data["additions"],
@@ -168,6 +173,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             author = f"\x1b[33m{pr.author}\x1b[0m"
         else:
             author = pr.author
+
+        if username in pr.requested_reviewers:
+            status += "\x1b[33;1m\u25cf\x1b[0m"
 
         print(f"{status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})")
         print(
