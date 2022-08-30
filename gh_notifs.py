@@ -150,7 +150,7 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:
         author = pr.author
 
     if username in pr.requested_reviewers:
-        status += "\x1b[33;1m\u25cf\x1b[0m"
+        status = "\x1b[33;1m\u25cf\x1b[0m " + status
 
     return f"""\
 {status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
