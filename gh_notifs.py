@@ -132,7 +132,7 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:
         else:
             status = ""
     elif pr.status == Status.DRAFT:
-        status = "\x1b[2m[D]\x1b[0m"
+        status = "\x1b[39;2m"
     elif pr.status == Status.MERGED:
         status = "\x1b[35m[M]\x1b[39;2m"
     elif pr.status == Status.CLOSED:
