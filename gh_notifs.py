@@ -132,7 +132,7 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:
         else:
             status = ""
     elif pr.status == Status.DRAFT:
-        status = "\x1b[2m[D]\x1b[0m"
+        status = "\x1b[39;2m"
     elif pr.status == Status.MERGED:
         status = "\x1b[35m[M]\x1b[39;2m"
     elif pr.status == Status.CLOSED:
@@ -150,7 +150,7 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:
         author = pr.author
 
     if username in pr.requested_reviewers:
-        status += "\x1b[33;1m\u25cf\x1b[0m"
+        status = "\x1b[33;1m\u25cf\x1b[0m " + status
 
     return f"""\
 {status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
