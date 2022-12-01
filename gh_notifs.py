@@ -120,6 +120,9 @@ class PR(NamedTuple):
 
 def get_data(url: str) -> Any:
     resp = http.request("GET", url)
+    if resp.status != 200:
+        message = json.loads(resp.data)["message"]
+        raise RuntimeError(message)
     return json.loads(resp.data)
 
 
