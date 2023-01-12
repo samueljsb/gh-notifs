@@ -15,6 +15,12 @@ http = urllib3.PoolManager()
 
 NOTIFS_URL = "https://api.github.com/notifications"
 
+TEAMS = [
+    "core-financials",
+    "core-financials-billing",
+    "core-financials-payments-and-debt",
+]
+
 
 class Status(Enum):
     DRAFT = "DRAFT"
@@ -109,7 +115,8 @@ class PR(NamedTuple):
             html_url=data["html_url"],
             updated_at_str=data["updated_at"],
             requested_reviewers=[
-                reviewer["login"] for reviewer in data["requested_reviewers"]
+                *(reviewer["login"] for reviewer in data["requested_reviewers"]),
+                *(team["slug"] for team in data["requested_teams"]),
             ],
             commits=data["commits"],
             files=data["changed_files"],
@@ -126,7 +133,7 @@ def get_data(url: str) -> Any:
     return json.loads(resp.data)
 
 
-def display_pr(pr: PR, username: str, referrer_id: str) -> str:
+def display_pr(pr: PR, username: str, referrer_id: str) -> str:  # noqa: C901
     if pr.status == Status.OPEN:
         if pr.merge_status == MergeStatus.CLEAN:
             status = "\x1b[92m\uf00c\x1b[0m "
@@ -152,13 +159,17 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:
     else:
         author = pr.author
 
-    if username in pr.requested_reviewers:
-        status = "\x1b[33;1m\u25cf\x1b[0m " + status
+    reviewers = []
+    for reviewer in pr.requested_reviewers:
+        if reviewer == username or reviewer in TEAMS:
+            reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
+        else:
+            reviewers.append(f"{reviewer}")
 
     return f"""\
 {status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
     by {author} -- updated {humanize.naturaltime(pr.updated_at)} -- ({pr.commits} commits, {pr.files} files) [\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m]
-     \x1b[2m{url}\x1b[0m
+    \x1b[2m{', '.join(reviewers)}\x1b[0m
 """  # noqa: E501
 
 
