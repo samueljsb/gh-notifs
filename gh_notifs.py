@@ -47,6 +47,8 @@ class PR(NamedTuple):
 
     owner: str
     repo: str
+    base_ref: str
+    base_default_branch: str
     number: str
     html_url: str
 
@@ -111,6 +113,8 @@ class PR(NamedTuple):
             auto_merge=bool(data["auto_merge"]),
             owner=data["base"]["repo"]["owner"]["login"],
             repo=data["base"]["repo"]["name"],
+            base_ref=data["base"]["ref"],
+            base_default_branch=data["base"]["repo"]["default_branch"],
             number=data["number"],
             html_url=data["html_url"],
             updated_at_str=data["updated_at"],
@@ -150,6 +154,11 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:  # noqa: C901
     else:
         raise ValueError(f"{pr.status=}")
 
+    if pr.base_ref != pr.base_default_branch:
+        base_ref = f" {pr.base_ref}"
+    else:
+        base_ref = ""
+
     url = pr.html_url
     if referrer_id:
         url += f"?notification_referrer_id={referrer_id}"
@@ -168,7 +177,7 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:  # noqa: C901
 
     return f"""\
 {status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
-    by {author} -- updated {humanize.naturaltime(pr.updated_at)} -- ({pr.commits} commits, {pr.files} files) [\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m]
+    by {author} -- updated {humanize.naturaltime(pr.updated_at)} -- ({pr.commits} commits, {pr.files} files) [\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m] {base_ref}
     \x1b[2m{', '.join(reviewers)}\x1b[0m
 """  # noqa: E501
 
