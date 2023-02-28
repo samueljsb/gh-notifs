@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime
 import json
 from enum import Enum
@@ -137,7 +138,17 @@ def get_data(url: str) -> Any:
     return json.loads(resp.data)
 
 
-def display_pr(pr: PR, username: str, referrer_id: str) -> str:  # noqa: C901
+def _referrer_id(notification_id: str, user_id: str) -> str:
+    prefix = b"\x93\x00\xce\x00s3\xa2\xb2"
+    token = (
+        base64.standard_b64encode(prefix + f"{notification_id}:{user_id}".encode())
+        .decode()
+        .rstrip("=")
+    )
+    return f"NT_{token}"
+
+
+def display_pr(pr: PR, username: str, notification_id: str) -> str:  # noqa: C901
     if pr.status == Status.OPEN:
         if pr.merge_status == MergeStatus.CLEAN:
             status = "\x1b[92m\uf00c\x1b[0m "
@@ -160,7 +171,10 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:  # noqa: C901
         base_ref = ""
 
     url = pr.html_url
-    if referrer_id:
+    if notification_id:
+        referrer_id = _referrer_id(
+            notification_id, "7549858"
+        )  # TODO: remove hardcoded ID
         url += f"?notification_referrer_id={referrer_id}"
 
     if pr.author == username:
@@ -179,6 +193,7 @@ def display_pr(pr: PR, username: str, referrer_id: str) -> str:  # noqa: C901
 {status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
     by {author} -- updated {humanize.naturaltime(pr.updated_at)} -- ({pr.commits} commits, {pr.files} files) [\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m] {base_ref}
     \x1b[2m{', '.join(reviewers)}\x1b[0m
+    \x1b[2m{url}\x1b[0m
 """  # noqa: E501
 
 
@@ -190,11 +205,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         required=True,
         dest="basic_auth",
         help="Basic auth user and password",
-    )
-    parser.add_argument(
-        "--referrer-id",
-        dest="referrer_id",
-        help="Notification referrer ID",
     )
     args = parser.parse_args(argv)
 
@@ -209,7 +219,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         username, *_ = args.basic_auth.partition(":")
 
-        print(display_pr(pr, username, args.referrer_id))
+        print(display_pr(pr, username, notif["id"]))
 
     return 0
 
