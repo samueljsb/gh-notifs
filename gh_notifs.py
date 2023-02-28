@@ -12,12 +12,6 @@ from typing import Sequence
 
 import humanize
 
-TEAMS = [
-    "core-financials",
-    "core-financials-billing",
-    "core-financials-payments-and-debt",
-]
-
 
 class Status(Enum):
     DRAFT = "DRAFT"
@@ -100,6 +94,7 @@ class PR(NamedTuple):
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> PR:
+        owner = data["base"]["repo"]["owner"]["login"]
         return cls(
             title=data["title"],
             author=data["user"]["login"],
@@ -108,7 +103,7 @@ class PR(NamedTuple):
             merged=data["merged"],
             mergeable_state=data["mergeable_state"],
             auto_merge=bool(data["auto_merge"]),
-            owner=data["base"]["repo"]["owner"]["login"],
+            owner=owner,
             repo=data["base"]["repo"]["name"],
             base_ref=data["base"]["ref"],
             base_default_branch=data["base"]["repo"]["default_branch"],
@@ -117,7 +112,7 @@ class PR(NamedTuple):
             updated_at_str=data["updated_at"],
             requested_reviewers=[
                 *(reviewer["login"] for reviewer in data["requested_reviewers"]),
-                *(team["slug"] for team in data["requested_teams"]),
+                *(f"{owner}/{team['slug']}" for team in data["requested_teams"]),
             ],
             commits=data["commits"],
             files=data["changed_files"],
@@ -126,10 +121,56 @@ class PR(NamedTuple):
         )
 
 
-def _gh_login() -> str:
-    return subprocess.check_output(
+def _gh_user() -> tuple[str, set[str]]:
+    login = subprocess.check_output(
         ("gh", "api", "user", "-q", ".login"), text=True
     ).strip()
+
+    orgs_query = """\
+{
+  viewer {
+    login
+    organizations(first: 100) {
+      nodes {
+        login
+      }
+    }
+  }
+}"""
+    organizations = (
+        # fmt: off
+        node["login"]
+        for node in _gh_api(
+            "graphql",
+            "-f", f"query={orgs_query}"
+        )["data"]["viewer"]["organizations"]["nodes"]
+        # fmt: on
+    )
+
+    teams_query = """\
+query($orgName: String!, $userLogin: String!) {
+  organization(login: $orgName) {
+    teams(userLogins: [$userLogin], first: 100) {
+      nodes {
+        slug
+      }
+    }
+  }
+}"""
+    teams = {
+        # fmt: off
+        f"{organization}/{node['slug']}"
+        for organization in organizations
+        for node in _gh_api(
+            "graphql",
+            "-f", f"orgName={organization}",
+            "-f", f"userLogin={login}",
+            "-f", f"query={teams_query}",
+        )["data"]["organization"]["teams"]["nodes"]
+        # fmt: on
+    }
+
+    return login, teams
 
 
 def _gh_api(*query: str) -> Any:
@@ -147,7 +188,9 @@ def _referrer_id(notification_id: str, user_id: str) -> str:
     return f"NT_{token}"
 
 
-def display_pr(pr: PR, username: str, notification_id: str) -> str:  # noqa: C901
+def display_pr(  # noqa: C901
+    pr: PR, username: str, teams: set[str], notification_id: str
+) -> str:
     if pr.status == Status.OPEN:
         if pr.merge_status == MergeStatus.CLEAN:
             status = "\x1b[92m\uf00c\x1b[0m "
@@ -183,7 +226,7 @@ def display_pr(pr: PR, username: str, notification_id: str) -> str:  # noqa: C90
 
     reviewers = []
     for reviewer in pr.requested_reviewers:
-        if reviewer == username or reviewer in TEAMS:
+        if reviewer == username or reviewer in teams:
             reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
         else:
             reviewers.append(f"{reviewer}")
@@ -200,7 +243,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.parse_args(argv)
 
-    username = _gh_login()
+    username, teams = _gh_user()
 
     notifs = _gh_api("notifications")
     notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
@@ -208,7 +251,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for notif in notifs:
         pr_data = _gh_api(notif["subject"]["url"])
         pr = PR.from_json(pr_data)
-        print(display_pr(pr, username, notif["id"]))
+        print(display_pr(pr, username, teams, notif["id"]))
 
     return 0
 
