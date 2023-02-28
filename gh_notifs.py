@@ -4,17 +4,13 @@ import argparse
 import base64
 import datetime
 import json
+import subprocess
 from enum import Enum
 from typing import Any
 from typing import NamedTuple
 from typing import Sequence
 
 import humanize
-import urllib3
-
-http = urllib3.PoolManager()
-
-NOTIFS_URL = "https://api.github.com/notifications"
 
 TEAMS = [
     "core-financials",
@@ -130,12 +126,15 @@ class PR(NamedTuple):
         )
 
 
-def get_data(url: str) -> Any:
-    resp = http.request("GET", url)
-    if resp.status != 200:
-        message = json.loads(resp.data)["message"]
-        raise RuntimeError(message)
-    return json.loads(resp.data)
+def _gh_login() -> str:
+    return subprocess.check_output(
+        ("gh", "api", "user", "-q", ".login"), text=True
+    ).strip()
+
+
+def _gh_api(*query: str) -> Any:
+    data = subprocess.check_output(("gh", "api", *query))
+    return json.loads(data)
 
 
 def _referrer_id(notification_id: str, user_id: str) -> str:
@@ -199,26 +198,16 @@ def display_pr(pr: PR, username: str, notification_id: str) -> str:  # noqa: C90
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--user",
-        metavar="<user:password>",
-        required=True,
-        dest="basic_auth",
-        help="Basic auth user and password",
-    )
-    args = parser.parse_args(argv)
+    parser.parse_args(argv)
 
-    http.headers = urllib3.make_headers(basic_auth=args.basic_auth)
+    username = _gh_login()
 
-    notifs = get_data(NOTIFS_URL)
+    notifs = _gh_api("notifications")
     notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
 
     for notif in notifs:
-        pr_data = get_data(notif["subject"]["url"])
+        pr_data = _gh_api(notif["subject"]["url"])
         pr = PR.from_json(pr_data)
-
-        username, *_ = args.basic_auth.partition(":")
-
         print(display_pr(pr, username, notif["id"]))
 
     return 0
