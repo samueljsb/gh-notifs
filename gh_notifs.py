@@ -224,12 +224,17 @@ def display_pr(  # noqa: C901
     else:
         author = pr.author
 
-    reviewers = []
+    reviewers, n_other_reviewers = [], 0
     for reviewer in pr.requested_reviewers:
-        if reviewer == username or reviewer in teams:
+        if reviewer == username:
             reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
-        else:
+        elif reviewer in teams:
             reviewers.append(f"{reviewer}")
+        else:
+            n_other_reviewers += 1
+
+    if n_other_reviewers:
+        reviewers.append(f"{n_other_reviewers} others")
 
     return f"""\
 {status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
