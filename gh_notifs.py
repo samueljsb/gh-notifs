@@ -240,18 +240,19 @@ class HtmlFormatter:
         if notif.pr.status == PRStatus.OPEN:
             if notif.pr.merge_status == PRMergeStatus.CLEAN:
                 yield (
-                    '<i class="bi bi-check-circle-fill fs-3 text-success" '
+                    '<i class="bi bi-check-circle-fill text-success fs-3 p-2" '
                     'style="float: right;" title="has been approved"></i>'
                 )
             if notif.pr.merge_status == PRMergeStatus.AUTO_MERGE:
                 yield (
-                    '<i class="bi bi-fast-forward-fill text-primary" '
-                    'style="float: right;" title="auto-merge enabled"></i>'
+                    '<i class="bi bi-fast-forward-circle fs-3 p-2" '
+                    'style="float: right; color: blueviolet;" '
+                    'title="auto-merge enabled"></i>'
                 )
 
         if notif.pr.author == notif.user.login:
             yield (
-                '<i class="bi bi-person-circle fs-3 text-warning p-2" '
+                '<i class="bi bi-person-circle text-warning fs-3 p-2" '
                 'style="float: right;" title="i am the author"></i>'
             )
 
