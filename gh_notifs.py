@@ -10,7 +10,9 @@ import sys
 from enum import Enum
 from typing import Any
 from typing import Collection
+from typing import Iterable
 from typing import NamedTuple
+from typing import Protocol
 from typing import Sequence
 
 import humanize
@@ -149,38 +151,51 @@ class Notification(NamedTuple):
         )
         return f"{self.pr.html_url}?notification_referrer_id=NT_{token}"
 
-    def render(self) -> str:  # noqa: C901
-        if self.pr.status == PRStatus.OPEN:
-            if self.pr.merge_status == PRMergeStatus.CLEAN:
+
+# ----------
+# Formatting
+# ----------
+
+
+class Formatter(Protocol):
+    def format(self, notifications: Iterable[Notification]) -> str:
+        ...
+
+
+class ConsoleFormatter:
+    @staticmethod
+    def _format_notification(notif: Notification) -> str:  # noqa: C901
+        if notif.pr.status == PRStatus.OPEN:
+            if notif.pr.merge_status == PRMergeStatus.CLEAN:
                 status = "\x1b[92m\uf00c\x1b[0m "
-            elif self.pr.merge_status == PRMergeStatus.AUTO_MERGE:
+            elif notif.pr.merge_status == PRMergeStatus.AUTO_MERGE:
                 status = "\u23e9"
             else:
                 status = ""
-        elif self.pr.status == PRStatus.DRAFT:
+        elif notif.pr.status == PRStatus.DRAFT:
             status = "\x1b[39;2m"
-        elif self.pr.status == PRStatus.MERGED:
+        elif notif.pr.status == PRStatus.MERGED:
             status = "\x1b[35m[M]\x1b[39;2m"
-        elif self.pr.status == PRStatus.CLOSED:
+        elif notif.pr.status == PRStatus.CLOSED:
             status = "\x1b[31m[C]\x1b[39;2m"
         else:
-            raise ValueError(f"{self.pr.status=}")
+            raise ValueError(f"{notif.pr.status=}")
 
-        if self.pr.base_ref != self.pr.base_default_branch:
-            base_ref = f" {self.pr.base_ref}"
+        if notif.pr.base_ref != notif.pr.base_default_branch:
+            base_ref = f" {notif.pr.base_ref}"
         else:
             base_ref = ""
 
-        if self.pr.author == self.user.login:
-            author = f"\x1b[33m{self.pr.author}\x1b[0m"
+        if notif.pr.author == notif.user.login:
+            author = f"\x1b[33m{notif.pr.author}\x1b[0m"
         else:
-            author = self.pr.author
+            author = notif.pr.author
 
         reviewers, n_other_reviewers = [], 0
-        for reviewer in self.pr.requested_reviewers:
-            if reviewer == self.user.login:
+        for reviewer in notif.pr.requested_reviewers:
+            if reviewer == notif.user.login:
                 reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
-            elif reviewer in self.user.teams:
+            elif reviewer in notif.user.teams:
                 reviewers.append(f"{reviewer}")
             else:
                 n_other_reviewers += 1
@@ -189,11 +204,16 @@ class Notification(NamedTuple):
             reviewers.append(f"{n_other_reviewers} others")
 
         return f"""\
-{status} \x1b[1m{self.pr.title}\x1b[0m ({self.pr.ref})
-    by {author} -- updated {humanize.naturaltime(self.pr.updated_at)} -- ({self.pr.commits} commits, {self.pr.files} files) [\x1b[92m+{self.pr.additions}\x1b[0m \x1b[91m-{self.pr.deletions}\x1b[0m] {base_ref}
+{status} \x1b[1m{notif.pr.title}\x1b[0m ({notif.pr.ref})
+    by {author} -- updated {humanize.naturaltime(notif.pr.updated_at)} -- ({notif.pr.commits} commits, {notif.pr.files} files) [\x1b[92m+{notif.pr.additions}\x1b[0m \x1b[91m-{notif.pr.deletions}\x1b[0m] {base_ref}
     \x1b[2m{', '.join(reviewers)}\x1b[0m
-    \x1b[2m{self.url}\x1b[0m
+    \x1b[2m{notif.url}\x1b[0m
 """  # noqa: E501
+
+    def format(self, notifications: Iterable[Notification]) -> str:
+        return "\n".join(
+            self._format_notification(notification) for notification in notifications
+        )
 
 
 # ----------
@@ -295,7 +315,7 @@ async def _gh_notif(id: str, pr_url: str, user: User) -> Notification:
 # -----------
 
 
-async def amain() -> int:
+async def amain(formatter: Formatter) -> int:
     user = _gh_user()
 
     notifs_data = (
@@ -309,8 +329,7 @@ async def amain() -> int:
         )
     )
 
-    for notif in notifications:
-        print(notif.render())
+    print(formatter.format(notifications))
 
     return 0
 
@@ -319,7 +338,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.parse_args(argv)
 
-    return asyncio.run(amain())
+    formatter = ConsoleFormatter()
+    return asyncio.run(amain(formatter))
 
 
 if __name__ == "__main__":
