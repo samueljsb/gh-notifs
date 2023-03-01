@@ -308,18 +308,18 @@ class HtmlFormatter:
         target_branch = self._target_branch(notif.pr)
         return f"""\
 <li class="list-group-item {self._li_class(notif)}" style="{self._li_style(notif)}">
-  <h5>
-    {"".join(self._icons(notif))}
-    {notif.pr.title}
-  </h5>
-  <div>
-    <p>
+    <p class="mb-1">
       <small class="lh-2">
         <a href="{notif.url}" target="_blank">{notif.pr.ref}</a>
         <span style="float: right;">{target_branch}</span>
       </small>
     </p>
-    <p>
+  <h5 class="mb-1">
+    {"".join(self._icons(notif))}
+    {notif.pr.title}
+  </h5>
+  <div>
+    <p class="mb-1">
       by {notif.pr.author} &mdash;
       updated {humanize.naturaltime(notif.pr.updated_at)} &mdash;
       (1 commits, 3 files)
