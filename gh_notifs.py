@@ -319,7 +319,7 @@ class HtmlFormatter:
 </div>
 """
 
-    def format(self, notifications: Iterable[Notification]) -> str:
+    def format(self, notifications: Sequence[Notification]) -> str:
         return f"""\
 <!DOCTYPE html>
 <html lang="en">
@@ -332,6 +332,7 @@ class HtmlFormatter:
   </head>
   <body class="bg-dark">
     <div class="container my-2 lh-1">
+      <span class="badge bg-secondary">{len(notifications)} unread notifications</span>
       {"".join(self._render_notification(notification) for notification in notifications)}
     </div>
 
