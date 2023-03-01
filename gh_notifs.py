@@ -197,7 +197,8 @@ class ConsoleFormatter:
             if reviewer == notif.user.login:
                 reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
             elif reviewer in notif.user.teams:
-                reviewers.append(f"{reviewer}")
+                _org, _, slug = reviewer.partition("/")
+                reviewers.append(f"{slug}")
             else:
                 n_other_reviewers += 1
 
@@ -275,7 +276,8 @@ class HtmlFormatter:
                     f"{reviewer}</li>"
                 )
             elif reviewer in notif.user.teams:
-                yield f'<li class="list-group-item">{reviewer}</li>'
+                _org, _, slug = reviewer.partition("/")
+                yield f'<li class="list-group-item">{slug}</li>'
             else:
                 others += 1
 
