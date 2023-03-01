@@ -336,9 +336,19 @@ async def amain(formatter: Formatter) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.parse_args(argv)
 
-    formatter = ConsoleFormatter()
+    format_mutex = parser.add_mutually_exclusive_group()
+    # fmt: off
+    format_mutex.add_argument(
+        "-c", "--console",
+        action="store_const", dest="formatter", const=ConsoleFormatter,
+    )
+    # fmt: on
+
+    parser.set_defaults(formatter=ConsoleFormatter)
+    args = parser.parse_args(argv)
+
+    formatter: Formatter = args.formatter()
     return asyncio.run(amain(formatter))
 
 
