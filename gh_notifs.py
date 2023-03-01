@@ -259,6 +259,11 @@ class HtmlFormatter:
                 '<i class="bi bi-x-circle text-danger fs-3 p-2" '
                 'style="float: right;" title="closed"></i>'
             )
+        elif notif.pr.status == PRStatus.MERGED:
+            yield (
+                '<i class="bi bi-sign-merge-right fs-3 p-2" '
+                'style="float: right; color: #6f42c1;" title="merged"></i>'
+            )
 
         if notif.pr.author == notif.user.login:
             yield (
@@ -338,7 +343,7 @@ class HtmlFormatter:
     <title>GitHub PR notifications</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
   </head>
   <body class="bg-dark">
     <div class="container my-2 lh-1">
