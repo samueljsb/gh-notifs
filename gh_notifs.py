@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import base64
 import datetime
 import json
 import subprocess
+import sys
 from enum import Enum
 from typing import Any
 from typing import Collection
@@ -251,24 +253,59 @@ query($orgName: String!, $userLogin: String!) {
     )
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
-    parser.parse_args(argv)
+async def _gh_api_async(*query: str) -> Any:
+    proc = await asyncio.create_subprocess_exec(
+        *("gh", "api", *query),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
 
+    if await proc.wait():
+        assert proc.stderr  # we pipe stderr to the Process object
+        stderr = await proc.stderr.read()
+        print(stderr, file=sys.stderr)
+        raise SystemExit(proc.returncode)
+
+    assert proc.stdout  # we pipe stdout to the Process object
+    stdout = await proc.stdout.read()
+    return json.loads(stdout.decode())
+
+
+async def _gh_pr(url: str) -> PR:
+    pr_data = await _gh_api_async(url)
+    return PR.from_json(pr_data)
+
+
+async def _gh_notif(id: str, pr_url: str, user: User) -> Notification:
+    pr = await _gh_pr(pr_url)
+    return Notification(id, user, pr)
+
+
+async def amain() -> int:
     user = _gh_user()
 
     notifs_data = (
         n for n in _gh_api("notifications") if n["subject"]["type"] == "PullRequest"
     )
 
-    for notif_data in notifs_data:
-        pr_data = _gh_api(notif_data["subject"]["url"])
-        pr = PR.from_json(pr_data)
+    notifications = await asyncio.gather(
+        *(
+            _gh_notif(notif_data["id"], notif_data["subject"]["url"], user)
+            for notif_data in notifs_data
+        )
+    )
 
-        notif = Notification(notif_data["id"], user, pr)
+    for notif in notifications:
         print(notif.render())
 
     return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.parse_args(argv)
+
+    return asyncio.run(amain())
 
 
 if __name__ == "__main__":
