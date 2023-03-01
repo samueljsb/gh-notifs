@@ -343,6 +343,30 @@ class HtmlFormatter:
 """  # noqa: E501
 
 
+# --------
+# Printers
+# --------
+
+
+class Printer(Protocol):
+    def print(self, value: str) -> None:
+        ...
+
+
+class ConsolePrinter:
+    def print(self, value: str) -> None:
+        print(value)
+
+
+class FilePrinter:
+    def __init__(self, filepath: str) -> None:
+        self.filepath = filepath
+
+    def print(self, value: str) -> None:
+        with open(self.filepath, "w") as f:
+            f.write(value)
+
+
 # ----------
 # GitHub API
 # ----------
@@ -442,7 +466,7 @@ async def _gh_notif(id: str, pr_url: str, user: User) -> Notification:
 # -----------
 
 
-async def amain(formatter: Formatter) -> int:
+async def amain(formatter: Formatter, printer: Printer) -> int:
     user = _gh_user()
 
     notifs_data = (
@@ -456,7 +480,7 @@ async def amain(formatter: Formatter) -> int:
         )
     )
 
-    print(formatter.format(notifications))
+    printer.print(formatter.format(notifications))
 
     return 0
 
@@ -476,11 +500,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     # fmt: on
 
+    print_mutex = parser.add_mutually_exclusive_group()
+    # fmt: off
+    print_mutex.add_argument(
+        "-f", "--filepath",
+        type=str, default=None
+    )
+    # fmt: on
+
     parser.set_defaults(formatter=ConsoleFormatter)
     args = parser.parse_args(argv)
 
     formatter: Formatter = args.formatter()
-    return asyncio.run(amain(formatter))
+    printer: Printer
+    if args.filepath:
+        printer = FilePrinter(args.filepath)
+    else:
+        printer = ConsolePrinter()
+
+    return asyncio.run(amain(formatter, printer))
 
 
 if __name__ == "__main__":
