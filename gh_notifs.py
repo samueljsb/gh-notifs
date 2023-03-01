@@ -128,6 +128,73 @@ class PR(NamedTuple):
         )
 
 
+class Notification(NamedTuple):
+    id: str
+    user: User
+    pr: PR
+
+    @property
+    def url(self) -> str:
+        prefix = b"\x93\x00\xce\x00s3\xa2\xb2"
+        token = (
+            base64.standard_b64encode(prefix + f"{self.id}:{self.user.id}".encode())
+            .decode()
+            .rstrip("=")
+        )
+        return f"{self.pr.html_url}?notification_referrer_id=NT_{token}"
+
+    def render(self) -> str:  # noqa: C901
+        if self.pr.status == Status.OPEN:
+            if self.pr.merge_status == MergeStatus.CLEAN:
+                status = "\x1b[92m\uf00c\x1b[0m "
+            elif self.pr.merge_status == MergeStatus.AUTO_MERGE:
+                status = "\u23e9"
+            else:
+                status = ""
+        elif self.pr.status == Status.DRAFT:
+            status = "\x1b[39;2m"
+        elif self.pr.status == Status.MERGED:
+            status = "\x1b[35m[M]\x1b[39;2m"
+        elif self.pr.status == Status.CLOSED:
+            status = "\x1b[31m[C]\x1b[39;2m"
+        else:
+            raise ValueError(f"{self.pr.status=}")
+
+        if self.pr.base_ref != self.pr.base_default_branch:
+            base_ref = f" {self.pr.base_ref}"
+        else:
+            base_ref = ""
+
+        if self.pr.author == self.user.login:
+            author = f"\x1b[33m{self.pr.author}\x1b[0m"
+        else:
+            author = self.pr.author
+
+        reviewers, n_other_reviewers = [], 0
+        for reviewer in self.pr.requested_reviewers:
+            if reviewer == self.user.login:
+                reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
+            elif reviewer in self.user.teams:
+                reviewers.append(f"{reviewer}")
+            else:
+                n_other_reviewers += 1
+
+        if n_other_reviewers:
+            reviewers.append(f"{n_other_reviewers} others")
+
+        return f"""\
+{status} \x1b[1m{self.pr.title}\x1b[0m ({self.pr.ref})
+    by {author} -- updated {humanize.naturaltime(self.pr.updated_at)} -- ({self.pr.commits} commits, {self.pr.files} files) [\x1b[92m+{self.pr.additions}\x1b[0m \x1b[91m-{self.pr.deletions}\x1b[0m] {base_ref}
+    \x1b[2m{', '.join(reviewers)}\x1b[0m
+    \x1b[2m{self.url}\x1b[0m
+"""  # noqa: E501
+
+
+def _gh_api(*query: str) -> Any:
+    data = subprocess.check_output(("gh", "api", *query))
+    return json.loads(data)
+
+
 def _gh_user() -> User:
     user = _gh_api("user")
     user_login = user["login"]
@@ -184,86 +251,22 @@ query($orgName: String!, $userLogin: String!) {
     )
 
 
-def _gh_api(*query: str) -> Any:
-    data = subprocess.check_output(("gh", "api", *query))
-    return json.loads(data)
-
-
-def _referrer_id(notification_id: str, user_id: str) -> str:
-    prefix = b"\x93\x00\xce\x00s3\xa2\xb2"
-    token = (
-        base64.standard_b64encode(prefix + f"{notification_id}:{user_id}".encode())
-        .decode()
-        .rstrip("=")
-    )
-    return f"NT_{token}"
-
-
-def display_pr(pr: PR, user: User, notification_id: str) -> str:  # noqa: C901
-    if pr.status == Status.OPEN:
-        if pr.merge_status == MergeStatus.CLEAN:
-            status = "\x1b[92m\uf00c\x1b[0m "
-        elif pr.merge_status == MergeStatus.AUTO_MERGE:
-            status = "\u23e9"
-        else:
-            status = ""
-    elif pr.status == Status.DRAFT:
-        status = "\x1b[39;2m"
-    elif pr.status == Status.MERGED:
-        status = "\x1b[35m[M]\x1b[39;2m"
-    elif pr.status == Status.CLOSED:
-        status = "\x1b[31m[C]\x1b[39;2m"
-    else:
-        raise ValueError(f"{pr.status=}")
-
-    if pr.base_ref != pr.base_default_branch:
-        base_ref = f" {pr.base_ref}"
-    else:
-        base_ref = ""
-
-    url = pr.html_url
-    if notification_id:
-        referrer_id = _referrer_id(notification_id, user.id)
-        url += f"?notification_referrer_id={referrer_id}"
-
-    if pr.author == user.login:
-        author = f"\x1b[33m{pr.author}\x1b[0m"
-    else:
-        author = pr.author
-
-    reviewers, n_other_reviewers = [], 0
-    for reviewer in pr.requested_reviewers:
-        if reviewer == user.login:
-            reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
-        elif reviewer in user.teams:
-            reviewers.append(f"{reviewer}")
-        else:
-            n_other_reviewers += 1
-
-    if n_other_reviewers:
-        reviewers.append(f"{n_other_reviewers} others")
-
-    return f"""\
-{status} \x1b[1m{pr.title}\x1b[0m ({pr.ref})
-    by {author} -- updated {humanize.naturaltime(pr.updated_at)} -- ({pr.commits} commits, {pr.files} files) [\x1b[92m+{pr.additions}\x1b[0m \x1b[91m-{pr.deletions}\x1b[0m] {base_ref}
-    \x1b[2m{', '.join(reviewers)}\x1b[0m
-    \x1b[2m{url}\x1b[0m
-"""  # noqa: E501
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.parse_args(argv)
 
     user = _gh_user()
 
-    notifs = _gh_api("notifications")
-    notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
+    notifs_data = (
+        n for n in _gh_api("notifications") if n["subject"]["type"] == "PullRequest"
+    )
 
-    for notif in notifs:
-        pr_data = _gh_api(notif["subject"]["url"])
+    for notif_data in notifs_data:
+        pr_data = _gh_api(notif_data["subject"]["url"])
         pr = PR.from_json(pr_data)
-        print(display_pr(pr, user, notif["id"]))
+
+        notif = Notification(notif_data["id"], user, pr)
+        print(notif.render())
 
     return 0
 
