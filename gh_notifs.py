@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any
 from typing import Collection
 from typing import Iterable
+from typing import Iterator
 from typing import NamedTuple
 from typing import Protocol
 from typing import Sequence
@@ -216,6 +217,132 @@ class ConsoleFormatter:
         )
 
 
+class HtmlFormatter:
+    @staticmethod
+    def _card_class(notif: Notification) -> str:
+        if notif.pr.status == PRStatus.DRAFT:
+            return "text-bg-secondary"
+        elif notif.pr.status == PRStatus.CLOSED:
+            return "text-bg-danger"
+        else:
+            return ""
+
+    @staticmethod
+    def _card_style(notif: Notification) -> str:
+        if notif.pr.status == PRStatus.MERGED:
+            return "background-color:blueviolet; color:white;"
+        else:
+            return ""
+
+    @staticmethod
+    def _icons(notif: Notification) -> Iterator[str]:
+        if notif.pr.status == PRStatus.OPEN:
+            if notif.pr.merge_status == PRMergeStatus.CLEAN:
+                yield (
+                    '<i class="bi bi-check-circle-fill fs-3 text-success" '
+                    'style="float: right;" title="has been approved"></i>'
+                )
+            if notif.pr.merge_status == PRMergeStatus.AUTO_MERGE:
+                yield (
+                    '<i class="bi bi-fast-forward-fill text-primary" '
+                    'style="float: right;" title="auto-merge enabled"></i>'
+                )
+
+        if notif.pr.author == notif.user.login:
+            yield (
+                '<i class="bi bi-person-circle fs-3 text-warning p-2" '
+                'style="float: right;" title="i am the author"></i>'
+            )
+
+    @staticmethod
+    def _target_branch(pr: PR) -> str:
+        if pr.base_ref != pr.base_default_branch:
+            return f"""\
+<span class="text-secondary">
+  <i class="bi bi-git"></i> {pr.base_ref}
+</span>
+"""
+        else:
+            return ""
+
+    @staticmethod
+    def _reviewer_list_items(notif: Notification) -> Iterator[str]:
+        others = 0
+        for reviewer in notif.pr.requested_reviewers:
+            if reviewer == notif.user.login:
+                yield (
+                    '<li class="list-group-item list-group-item-warning">'
+                    f"{reviewer}</li>"
+                )
+            elif reviewer in notif.user.teams:
+                yield f'<li class="list-group-item">{reviewer}</li>'
+            else:
+                others += 1
+
+        if others:
+            yield (
+                '<li class="list-group-item list-group-item-light">'
+                f"{others} others</li>"
+            )
+
+    def _render_notification(self, notif: Notification) -> str:
+        target_branch = self._target_branch(notif.pr)
+        return f"""\
+<div class="card my-1 {self._card_class(notif)}" style="{self._card_style(notif)}">
+  <h5 class="card-header">
+    {"".join(self._icons(notif))}
+    {notif.pr.title}
+    <a href="{notif.url}" target="_blank">
+      <span style="float: right;">
+        <small>{notif.pr.ref}</small>
+      </span>
+    </a>
+  </h5>
+  <div class="card-body">
+    <p class="card-text">
+      {target_branch}{"<br />" if target_branch else ""}
+      by {notif.pr.author} &mdash;
+      updated {humanize.naturaltime(notif.pr.updated_at)} &mdash;
+      (1 commits, 3 files)
+      [<span class="text-success">+{notif.pr.additions}</span>
+      <span class="text-danger">-{notif.pr.deletions}</span>]
+    </p>
+    <small>
+      <ul class="list-group list-group-horizontal">
+        {"".join(self._reviewer_list_items(notif))}
+      </ul>
+    </small>
+  </div>
+</div>
+"""
+
+    def format(self, notifications: Iterable[Notification]) -> str:
+        return f"""\
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>GitHub PR notifications</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css" />
+  </head>
+  <body class="bg-dark">
+    <div class="container my-2 lh-1">
+      {"".join(self._render_notification(notification) for notification in notifications)}
+    </div>
+
+    <script>
+      function reload() {{
+        location.reload();
+      }}
+      setInterval(reload, 12000); // refresh every 12s
+    </script>
+  </body>
+</html>
+"""  # noqa: E501
+
+
 # ----------
 # GitHub API
 # ----------
@@ -342,6 +469,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     format_mutex.add_argument(
         "-c", "--console",
         action="store_const", dest="formatter", const=ConsoleFormatter,
+    )
+    format_mutex.add_argument(
+        "-H", "--html",
+        action="store_const", dest="formatter", const=HtmlFormatter,
     )
     # fmt: on
 
