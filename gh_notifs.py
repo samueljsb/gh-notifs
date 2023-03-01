@@ -121,10 +121,10 @@ class PR(NamedTuple):
         )
 
 
-def _gh_user() -> tuple[str, set[str]]:
-    login = subprocess.check_output(
-        ("gh", "api", "user", "-q", ".login"), text=True
-    ).strip()
+def _gh_user() -> tuple[str, str, set[str]]:
+    user = _gh_api("user")
+    user_login = user["login"]
+    user_id = str(user["id"])
 
     orgs_query = """\
 {
@@ -164,13 +164,13 @@ query($orgName: String!, $userLogin: String!) {
         for node in _gh_api(
             "graphql",
             "-f", f"orgName={organization}",
-            "-f", f"userLogin={login}",
+            "-f", f"userLogin={user_login}",
             "-f", f"query={teams_query}",
         )["data"]["organization"]["teams"]["nodes"]
         # fmt: on
     }
 
-    return login, teams
+    return user_login, user_id, teams
 
 
 def _gh_api(*query: str) -> Any:
@@ -189,7 +189,7 @@ def _referrer_id(notification_id: str, user_id: str) -> str:
 
 
 def display_pr(  # noqa: C901
-    pr: PR, username: str, teams: set[str], notification_id: str
+    pr: PR, username: str, user_id: str, teams: set[str], notification_id: str
 ) -> str:
     if pr.status == Status.OPEN:
         if pr.merge_status == MergeStatus.CLEAN:
@@ -214,9 +214,7 @@ def display_pr(  # noqa: C901
 
     url = pr.html_url
     if notification_id:
-        referrer_id = _referrer_id(
-            notification_id, "7549858"
-        )  # TODO: remove hardcoded ID
+        referrer_id = _referrer_id(notification_id, user_id)
         url += f"?notification_referrer_id={referrer_id}"
 
     if pr.author == username:
@@ -248,7 +246,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.parse_args(argv)
 
-    username, teams = _gh_user()
+    username, user_id, teams = _gh_user()
 
     notifs = _gh_api("notifications")
     notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
@@ -256,7 +254,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for notif in notifs:
         pr_data = _gh_api(notif["subject"]["url"])
         pr = PR.from_json(pr_data)
-        print(display_pr(pr, username, teams, notif["id"]))
+        print(display_pr(pr, username, user_id, teams, notif["id"]))
 
     return 0
 
