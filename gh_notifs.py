@@ -284,7 +284,7 @@ class HtmlFormatter:
 
     @staticmethod
     def _reviewer_list_items(notif: Notification) -> Iterator[str]:
-        others = 0
+        others = []
         for reviewer in notif.pr.requested_reviewers:
             if reviewer == notif.user.login:
                 yield (
@@ -295,12 +295,13 @@ class HtmlFormatter:
                 _org, _, slug = reviewer.partition("/")
                 yield f'<li class="list-group-item">{slug}</li>'
             else:
-                others += 1
+                _org, _, slug = reviewer.rpartition("/")
+                others.append(slug)
 
         if others:
             yield (
                 '<li class="list-group-item list-group-item-light">'
-                f"{others} others</li>"
+                f'<span title="{", ".join(others)}">{len(others)} others</span></li>'
             )
 
     def _render_notification(self, notif: Notification) -> str:
