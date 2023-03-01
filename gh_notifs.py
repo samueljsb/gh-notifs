@@ -7,6 +7,7 @@ import json
 import subprocess
 from enum import Enum
 from typing import Any
+from typing import Collection
 from typing import NamedTuple
 from typing import Sequence
 
@@ -24,6 +25,12 @@ class MergeStatus(Enum):
     CLEAN = "CLEAN"  # can be merged
     AUTO_MERGE = "AUTO_MERGE"  # will be merged automatically
     UNKNOWN = "UNKNOWN"
+
+
+class User(NamedTuple):
+    id: str
+    login: str
+    teams: Collection[str]
 
 
 class PR(NamedTuple):
@@ -121,7 +128,7 @@ class PR(NamedTuple):
         )
 
 
-def _gh_user() -> tuple[str, str, set[str]]:
+def _gh_user() -> User:
     user = _gh_api("user")
     user_login = user["login"]
     user_id = str(user["id"])
@@ -170,7 +177,11 @@ query($orgName: String!, $userLogin: String!) {
         # fmt: on
     }
 
-    return user_login, user_id, teams
+    return User(
+        id=user_id,
+        login=user_login,
+        teams=teams,
+    )
 
 
 def _gh_api(*query: str) -> Any:
@@ -188,9 +199,7 @@ def _referrer_id(notification_id: str, user_id: str) -> str:
     return f"NT_{token}"
 
 
-def display_pr(  # noqa: C901
-    pr: PR, username: str, user_id: str, teams: set[str], notification_id: str
-) -> str:
+def display_pr(pr: PR, user: User, notification_id: str) -> str:  # noqa: C901
     if pr.status == Status.OPEN:
         if pr.merge_status == MergeStatus.CLEAN:
             status = "\x1b[92m\uf00c\x1b[0m "
@@ -214,19 +223,19 @@ def display_pr(  # noqa: C901
 
     url = pr.html_url
     if notification_id:
-        referrer_id = _referrer_id(notification_id, user_id)
+        referrer_id = _referrer_id(notification_id, user.id)
         url += f"?notification_referrer_id={referrer_id}"
 
-    if pr.author == username:
+    if pr.author == user.login:
         author = f"\x1b[33m{pr.author}\x1b[0m"
     else:
         author = pr.author
 
     reviewers, n_other_reviewers = [], 0
     for reviewer in pr.requested_reviewers:
-        if reviewer == username:
+        if reviewer == user.login:
             reviewers.append(f"\x1b[33m{reviewer}\x1b[39m")
-        elif reviewer in teams:
+        elif reviewer in user.teams:
             reviewers.append(f"{reviewer}")
         else:
             n_other_reviewers += 1
@@ -246,7 +255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.parse_args(argv)
 
-    username, user_id, teams = _gh_user()
+    user = _gh_user()
 
     notifs = _gh_api("notifications")
     notifs = [n for n in notifs if n["subject"]["type"] == "PullRequest"]
@@ -254,7 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for notif in notifs:
         pr_data = _gh_api(notif["subject"]["url"])
         pr = PR.from_json(pr_data)
-        print(display_pr(pr, username, user_id, teams, notif["id"]))
+        print(display_pr(pr, user, notif["id"]))
 
     return 0
 
