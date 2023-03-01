@@ -220,18 +220,18 @@ class ConsoleFormatter:
 
 class HtmlFormatter:
     @staticmethod
-    def _card_class(notif: Notification) -> str:
+    def _li_class(notif: Notification) -> str:
         if notif.pr.status == PRStatus.DRAFT:
-            return "text-bg-secondary"
+            return "disabled"
         elif notif.pr.status == PRStatus.CLOSED:
-            return "text-bg-danger"
+            return "list-group-item-danger"
         else:
             return ""
 
     @staticmethod
-    def _card_style(notif: Notification) -> str:
+    def _li_style(notif: Notification) -> str:
         if notif.pr.status == PRStatus.MERGED:
-            return "background-color:blueviolet; color:white;"
+            return "color: #2c1a4d; background-color: #c5b3e6;"
         else:
             return ""
 
@@ -246,9 +246,19 @@ class HtmlFormatter:
             if notif.pr.merge_status == PRMergeStatus.AUTO_MERGE:
                 yield (
                     '<i class="bi bi-fast-forward-circle fs-3 p-2" '
-                    'style="float: right; color: blueviolet;" '
+                    'style="float: right; color: #6f42c1;" '
                     'title="auto-merge enabled"></i>'
                 )
+        elif notif.pr.status == PRStatus.DRAFT:
+            yield (
+                '<i class="bi bi-pencil text-secondary fs-3 p-2" '
+                'style="float: right;" title="draft"></i>'
+            )
+        elif notif.pr.status == PRStatus.CLOSED:
+            yield (
+                '<i class="bi bi-x-circle text-danger fs-3 p-2" '
+                'style="float: right;" title="closed"></i>'
+            )
 
         if notif.pr.author == notif.user.login:
             yield (
@@ -291,19 +301,19 @@ class HtmlFormatter:
     def _render_notification(self, notif: Notification) -> str:
         target_branch = self._target_branch(notif.pr)
         return f"""\
-<div class="card my-1 {self._card_class(notif)}" style="{self._card_style(notif)}">
-  <h5 class="card-header">
+<li class="list-group-item {self._li_class(notif)}" style="{self._li_style(notif)}">
+  <h5>
     {"".join(self._icons(notif))}
     {notif.pr.title}
-    <a href="{notif.url}" target="_blank">
-      <span style="float: right;">
-        <small>{notif.pr.ref}</small>
-      </span>
-    </a>
   </h5>
-  <div class="card-body">
-    <p class="card-text">
-      {target_branch}{"<br />" if target_branch else ""}
+  <div>
+    <p>
+      <small class="lh-2">
+        <a href="{notif.url}" target="_blank">{notif.pr.ref}</a>
+        <span style="float: right;">{target_branch}</span>
+      </small>
+    </p>
+    <p>
       by {notif.pr.author} &mdash;
       updated {humanize.naturaltime(notif.pr.updated_at)} &mdash;
       (1 commits, 3 files)
@@ -316,7 +326,7 @@ class HtmlFormatter:
       </ul>
     </small>
   </div>
-</div>
+</li>
 """
 
     def format(self, notifications: Sequence[Notification]) -> str:
@@ -333,7 +343,9 @@ class HtmlFormatter:
   <body class="bg-dark">
     <div class="container my-2 lh-1">
       <span class="badge bg-secondary">{len(notifications)} unread notifications</span>
-      {"".join(self._render_notification(notification) for notification in notifications)}
+      <ul class="list-group">
+        {"".join(self._render_notification(notification) for notification in notifications)}
+      </ul>
     </div>
 
     <script>
