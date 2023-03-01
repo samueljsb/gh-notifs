@@ -15,24 +15,28 @@ from typing import Sequence
 
 import humanize
 
-
-class Status(Enum):
-    DRAFT = "DRAFT"
-    OPEN = "OPEN"
-    MERGED = "MERGED"
-    CLOSED = "CLOSED"
-
-
-class MergeStatus(Enum):
-    CLEAN = "CLEAN"  # can be merged
-    AUTO_MERGE = "AUTO_MERGE"  # will be merged automatically
-    UNKNOWN = "UNKNOWN"
+# -------
+# Objects
+# -------
 
 
 class User(NamedTuple):
     id: str
     login: str
     teams: Collection[str]
+
+
+class PRStatus(Enum):
+    DRAFT = "DRAFT"
+    OPEN = "OPEN"
+    MERGED = "MERGED"
+    CLOSED = "CLOSED"
+
+
+class PRMergeStatus(Enum):
+    CLEAN = "CLEAN"  # can be merged
+    AUTO_MERGE = "AUTO_MERGE"  # will be merged automatically
+    UNKNOWN = "UNKNOWN"
 
 
 class PR(NamedTuple):
@@ -62,26 +66,26 @@ class PR(NamedTuple):
     deletions: int
 
     @property
-    def status(self) -> Status:
+    def status(self) -> PRStatus:
         if self.state == "open":
             if self.draft:
-                return Status.DRAFT
+                return PRStatus.DRAFT
             else:
-                return Status.OPEN
+                return PRStatus.OPEN
         elif self.state == "closed":
             if self.merged:
-                return Status.MERGED
+                return PRStatus.MERGED
             else:
-                return Status.CLOSED
+                return PRStatus.CLOSED
         else:
             raise ValueError(f"Unrecognised state: {self.state}")
 
     @property
-    def merge_status(self) -> MergeStatus:
+    def merge_status(self) -> PRMergeStatus:
         if self.mergeable_state == "clean":
-            return MergeStatus.CLEAN
+            return PRMergeStatus.CLEAN
         elif self.auto_merge:
-            return MergeStatus.AUTO_MERGE
+            return PRMergeStatus.AUTO_MERGE
         elif self.mergeable_state in {
             "behind",
             "blocked",
@@ -89,7 +93,7 @@ class PR(NamedTuple):
             "unknown",
             "unstable",
         }:
-            return MergeStatus.UNKNOWN
+            return PRMergeStatus.UNKNOWN
         else:
             raise ValueError(f"Unrecognised mergeable state: {self.mergeable_state}")
 
@@ -146,18 +150,18 @@ class Notification(NamedTuple):
         return f"{self.pr.html_url}?notification_referrer_id=NT_{token}"
 
     def render(self) -> str:  # noqa: C901
-        if self.pr.status == Status.OPEN:
-            if self.pr.merge_status == MergeStatus.CLEAN:
+        if self.pr.status == PRStatus.OPEN:
+            if self.pr.merge_status == PRMergeStatus.CLEAN:
                 status = "\x1b[92m\uf00c\x1b[0m "
-            elif self.pr.merge_status == MergeStatus.AUTO_MERGE:
+            elif self.pr.merge_status == PRMergeStatus.AUTO_MERGE:
                 status = "\u23e9"
             else:
                 status = ""
-        elif self.pr.status == Status.DRAFT:
+        elif self.pr.status == PRStatus.DRAFT:
             status = "\x1b[39;2m"
-        elif self.pr.status == Status.MERGED:
+        elif self.pr.status == PRStatus.MERGED:
             status = "\x1b[35m[M]\x1b[39;2m"
-        elif self.pr.status == Status.CLOSED:
+        elif self.pr.status == PRStatus.CLOSED:
             status = "\x1b[31m[C]\x1b[39;2m"
         else:
             raise ValueError(f"{self.pr.status=}")
@@ -190,6 +194,11 @@ class Notification(NamedTuple):
     \x1b[2m{', '.join(reviewers)}\x1b[0m
     \x1b[2m{self.url}\x1b[0m
 """  # noqa: E501
+
+
+# ----------
+# GitHub API
+# ----------
 
 
 def _gh_api(*query: str) -> Any:
@@ -279,6 +288,11 @@ async def _gh_pr(url: str) -> PR:
 async def _gh_notif(id: str, pr_url: str, user: User) -> Notification:
     pr = await _gh_pr(pr_url)
     return Notification(id, user, pr)
+
+
+# -----------
+# Application
+# -----------
 
 
 async def amain() -> int:
