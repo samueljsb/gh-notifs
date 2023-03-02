@@ -322,7 +322,7 @@ class HtmlFormatter:
     <p class="mb-1">
       by {notif.pr.author} &mdash;
       updated {humanize.naturaltime(notif.pr.updated_at)} &mdash;
-      (1 commits, 3 files)
+      ({notif.pr.commits} commits, {notif.pr.files} files)
       [<span class="text-success">+{notif.pr.additions}</span>
       <span class="text-danger">-{notif.pr.deletions}</span>]
     </p>
