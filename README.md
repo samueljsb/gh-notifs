@@ -40,5 +40,5 @@ browser. The webpage has some JS to make it reload every few seconds to show
 updates when they happen.
 
 ```shell
-watch -n60 gh-notifs -Hf index.html
+watch -n60 venv/bin/gh-notifs -Hf index.html
 ```
