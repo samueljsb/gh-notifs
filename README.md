@@ -42,3 +42,10 @@ updates when they happen.
 ```shell
 watch -n60 venv/bin/gh-notifs -Hf index.html
 ```
+
+`watch` won't run in the background, so if you don't want to give up a whole
+terminal window you can achieve the same thing with
+
+```shell
+while true; venv/bin/gh-notifs -Hf index.html; sleep 60; done &
+```
