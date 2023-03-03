@@ -388,6 +388,8 @@ class FilePrinter:
         with open(self.filepath, "w") as f:
             f.write(value)
 
+        print(f"{datetime.datetime.now()}: written to {self.filepath}", file=sys.stderr)
+
 
 # ----------
 # GitHub API
