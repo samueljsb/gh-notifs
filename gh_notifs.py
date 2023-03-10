@@ -222,7 +222,7 @@ class HtmlFormatter:
     @staticmethod
     def _li_class(notif: Notification) -> str:
         if notif.pr.status == PRStatus.DRAFT:
-            return "disabled"
+            return "list-group-item-light"
         elif notif.pr.status == PRStatus.CLOSED:
             return "list-group-item-danger"
         else:
