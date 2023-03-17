@@ -396,8 +396,13 @@ class FilePrinter:
 # ----------
 
 
-def _gh_api(*query: str) -> Any:
-    data = subprocess.check_output(("gh", "api", *query))
+def _gh_api(*query: str, paginate: bool = False) -> Any:
+    if paginate:
+        data = subprocess.check_output(("gh", "api", "--paginate", *query), text=True)
+        data = data.replace("][", ",")  # join pages
+    else:
+        data = subprocess.check_output(("gh", "api", *query), text=True)
+
     return json.loads(data)
 
 
@@ -494,7 +499,9 @@ async def amain(formatter: Formatter, printer: Printer) -> int:
     user = _gh_user()
 
     notifs_data = (
-        n for n in _gh_api("notifications") if n["subject"]["type"] == "PullRequest"
+        n
+        for n in _gh_api("notifications", paginate=True)
+        if n["subject"]["type"] == "PullRequest"
     )
 
     notifications = await asyncio.gather(
