@@ -324,7 +324,7 @@ class HtmlFormatter:
       updated {humanize.naturaltime(notif.pr.updated_at)} &mdash;
       ({notif.pr.commits} commits, {notif.pr.files} files)
       [<span class="text-success">+{notif.pr.additions}</span>
-      <span class="text-danger">-{notif.pr.deletions}</span>]
+      <span class="text-danger">−{notif.pr.deletions}</span>]
     </p>
     <small>
       <ul class="list-group list-group-horizontal">
