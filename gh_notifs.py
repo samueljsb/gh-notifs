@@ -276,7 +276,7 @@ class HtmlFormatter:
         if pr.base_ref != pr.base_default_branch:
             return f"""\
 <span class="text-secondary">
-  <i class="bi bi-git"></i> {pr.base_ref}
+  into <i class="bi bi-git"></i> {pr.base_ref}
 </span>
 """
         else:
@@ -310,21 +310,22 @@ class HtmlFormatter:
 <li class="list-group-item {self._li_class(notif)}" style="{self._li_style(notif)}">
     <p class="mb-1">
       <small class="lh-2">
+        <span style="float: right;">{humanize.naturaltime(notif.pr.updated_at)}</span>
         <a href="{notif.url}" target="_blank">{notif.pr.ref}</a>
-        <span style="float: right;">{target_branch}</span>
+        by {notif.pr.author}
+        <br/>
+        <span>{target_branch}</span>
       </small>
     </p>
   <h5 class="mb-1">
-    {"".join(self._icons(notif))}
     {notif.pr.title}
   </h5>
   <div>
     <p class="mb-1">
-      by {notif.pr.author} &mdash;
-      updated {humanize.naturaltime(notif.pr.updated_at)} &mdash;
-      ({notif.pr.commits} commits, {notif.pr.files} files)
-      [<span class="text-success">+{notif.pr.additions}</span>
-      <span class="text-danger">−{notif.pr.deletions}</span>]
+      {"".join(self._icons(notif))}
+      <span class="text-success">+{notif.pr.additions}</span>
+      <span class="text-danger">−{notif.pr.deletions}</span>
+      in {notif.pr.commits} commits, {notif.pr.files} files.
     </p>
     <small>
       <ul class="list-group list-group-horizontal">
