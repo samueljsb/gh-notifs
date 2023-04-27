@@ -312,6 +312,7 @@ class HtmlFormatter:
       <small class="lh-2">
         <span style="float: right;">{humanize.naturaltime(notif.pr.updated_at)}</span>
         <a href="{notif.url}" target="_blank">{notif.pr.ref}</a>
+        by {notif.pr.author}
         <span style="float: right;">{target_branch}</span>
       </small>
     </p>
@@ -321,7 +322,6 @@ class HtmlFormatter:
   </h5>
   <div>
     <p class="mb-1">
-      by {notif.pr.author} &mdash;
       ({notif.pr.commits} commits, {notif.pr.files} files)
       [<span class="text-success">+{notif.pr.additions}</span>
       <span class="text-danger">−{notif.pr.deletions}</span>]
