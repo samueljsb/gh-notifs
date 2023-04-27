@@ -317,11 +317,11 @@ class HtmlFormatter:
       </small>
     </p>
   <h5 class="mb-1">
-    {"".join(self._icons(notif))}
     {notif.pr.title}
   </h5>
   <div>
     <p class="mb-1">
+      {"".join(self._icons(notif))}
       ({notif.pr.commits} commits, {notif.pr.files} files)
       [<span class="text-success">+{notif.pr.additions}</span>
       <span class="text-danger">−{notif.pr.deletions}</span>]
