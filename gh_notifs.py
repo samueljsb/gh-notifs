@@ -276,7 +276,7 @@ class HtmlFormatter:
         if pr.base_ref != pr.base_default_branch:
             return f"""\
 <span class="text-secondary">
-  <i class="bi bi-git"></i> {pr.base_ref}
+  into <i class="bi bi-git"></i> {pr.base_ref}
 </span>
 """
         else:
@@ -313,7 +313,8 @@ class HtmlFormatter:
         <span style="float: right;">{humanize.naturaltime(notif.pr.updated_at)}</span>
         <a href="{notif.url}" target="_blank">{notif.pr.ref}</a>
         by {notif.pr.author}
-        <span style="float: right;">{target_branch}</span>
+        <br/>
+        <span>{target_branch}</span>
       </small>
     </p>
   <h5 class="mb-1">
