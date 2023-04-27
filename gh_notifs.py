@@ -322,9 +322,9 @@ class HtmlFormatter:
   <div>
     <p class="mb-1">
       {"".join(self._icons(notif))}
-      ({notif.pr.commits} commits, {notif.pr.files} files)
-      [<span class="text-success">+{notif.pr.additions}</span>
-      <span class="text-danger">−{notif.pr.deletions}</span>]
+      <span class="text-success">+{notif.pr.additions}</span>
+      <span class="text-danger">−{notif.pr.deletions}</span>
+      in {notif.pr.commits} commits, {notif.pr.files} files.
     </p>
     <small>
       <ul class="list-group list-group-horizontal">
