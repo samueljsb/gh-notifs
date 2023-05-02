@@ -405,7 +405,7 @@ def _gh_api(*query: str, paginate: bool = False) -> Any:
                 text=True,
             )
         except subprocess.CalledProcessError as exc:
-            print(exc, file=sys.stderr)
+            print(f"{datetime.datetime.now()}: {exc}", file=sys.stderr)
             raise SystemExit(exc.returncode) from exc
         else:
             data = data.replace("][", ",")  # join pages
@@ -413,7 +413,7 @@ def _gh_api(*query: str, paginate: bool = False) -> Any:
         try:
             data = subprocess.check_output(("gh", "api", *query), text=True)
         except subprocess.CalledProcessError as exc:
-            print(exc, file=sys.stderr)
+            print(f"{datetime.datetime.now()}: {exc}", file=sys.stderr)
             raise SystemExit(exc.returncode) from exc
 
     return json.loads(data)
@@ -485,7 +485,7 @@ async def _gh_api_async(*query: str) -> Any:
     if await proc.wait():
         assert proc.stderr  # we pipe stderr to the Process object
         stderr = await proc.stderr.read()
-        print(stderr, file=sys.stderr)
+        print(f"{datetime.datetime.now()}: {stderr.decode()}", file=sys.stderr)
         raise SystemExit(proc.returncode)
 
     assert proc.stdout  # we pipe stdout to the Process object
