@@ -399,10 +399,22 @@ class FilePrinter:
 
 def _gh_api(*query: str, paginate: bool = False) -> Any:
     if paginate:
-        data = subprocess.check_output(("gh", "api", "--paginate", *query), text=True)
-        data = data.replace("][", ",")  # join pages
+        try:
+            data = subprocess.check_output(
+                ("gh", "api", "--paginate", *query),
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            print(exc, file=sys.stderr)
+            raise SystemExit(exc.returncode) from exc
+        else:
+            data = data.replace("][", ",")  # join pages
     else:
-        data = subprocess.check_output(("gh", "api", *query), text=True)
+        try:
+            data = subprocess.check_output(("gh", "api", *query), text=True)
+        except subprocess.CalledProcessError as exc:
+            print(exc, file=sys.stderr)
+            raise SystemExit(exc.returncode) from exc
 
     return json.loads(data)
 
