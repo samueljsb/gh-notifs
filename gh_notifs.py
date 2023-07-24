@@ -106,7 +106,11 @@ class PR(NamedTuple):
 
     @property
     def updated_at(self) -> datetime.datetime:
-        return datetime.datetime.fromisoformat(self.updated_at_str.rstrip("Z"))
+        updated_at_str = self.updated_at_str.replace("Z", "+00:00")
+        updated_at = datetime.datetime.fromisoformat(updated_at_str)
+
+        # convert to local time and then remove the timezone info
+        return updated_at.astimezone().replace(tzinfo=None)
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> PR:
