@@ -47,5 +47,5 @@ watch -n60 venv/bin/gh-notifs -Hf index.html
 terminal window you can achieve the same thing with
 
 ```shell
-while true; venv/bin/gh-notifs -Hf index.html; sleep 60; done &
+while true; do venv/bin/gh-notifs -Hf index.html; sleep 60; done &
 ```
