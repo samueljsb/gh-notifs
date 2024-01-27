@@ -223,6 +223,9 @@ class ConsoleFormatter:
 
 
 class HtmlFormatter:
+    def __init__(self, auto_refresh: bool) -> None:
+        self.auto_refresh = auto_refresh
+
     @staticmethod
     def _li_class(notif: Notification) -> str:
         if notif.pr.status == PRStatus.DRAFT:
@@ -343,6 +346,18 @@ class HtmlFormatter:
 """
 
     def format(self, notifications: Sequence[Notification]) -> str:
+        if self.auto_refresh:
+            script = """\
+<script>
+    function reload() {
+        location.reload();
+    }
+    setInterval(reload, 12000); // refresh every 12s
+</script>
+"""
+        else:
+            script = ""
+
         return f"""\
 <!DOCTYPE html>
 <html lang="en">
@@ -361,12 +376,7 @@ class HtmlFormatter:
       </ul>
     </div>
 
-    <script>
-      function reload() {{
-        location.reload();
-      }}
-      setInterval(reload, 12000); // refresh every 12s
-    </script>
+    {script}
   </body>
 </html>
 """  # noqa: E501
@@ -558,10 +568,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     # fmt: on
 
+    parser.add_argument(
+        "--auto-refresh",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="auto-refresh the HTML output (default)",
+    )
+
     parser.set_defaults(formatter=ConsoleFormatter)
     args = parser.parse_args(argv)
 
-    formatter: Formatter = args.formatter()
+    formatter: Formatter
+    if issubclass(args.formatter, HtmlFormatter):
+        formatter = args.formatter(auto_refresh=args.auto_refresh)
+    else:
+        formatter = args.formatter()
+
     printer: Printer
     if args.filepath:
         printer = FilePrinter(args.filepath)
