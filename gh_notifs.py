@@ -163,8 +163,7 @@ class Notification(NamedTuple):
 
 
 class Formatter(Protocol):
-    def format(self, notifications: Iterable[Notification]) -> str:
-        ...
+    def format(self, notifications: Iterable[Notification]) -> str: ...
 
 
 class ConsoleFormatter:
@@ -388,8 +387,7 @@ class HtmlFormatter:
 
 
 class Printer(Protocol):
-    def print(self, value: str) -> None:
-        ...
+    def print(self, value: str) -> None: ...
 
 
 class ConsolePrinter:
