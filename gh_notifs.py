@@ -222,8 +222,9 @@ class ConsoleFormatter:
 
 
 class HtmlFormatter:
-    def __init__(self, auto_refresh: bool) -> None:
+    def __init__(self, auto_refresh: bool, theme: str) -> None:
         self.auto_refresh = auto_refresh
+        self.theme = theme
 
     @staticmethod
     def _li_class(notif: Notification) -> str:
@@ -361,7 +362,7 @@ class HtmlFormatter:
 
         return f"""\
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="{self.theme}">
   <head>
     <meta charset="utf-8"/>
     <title>GitHub PR notifications</title>
@@ -575,12 +576,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="auto-refresh the HTML output (default)",
     )
 
+    parser.add_argument(
+        "--theme",
+        choices=("light", "dark"),
+        default="light",
+        help="color theme for HTML output (default: %(default)s)",
+    )
+
     parser.set_defaults(formatter=ConsoleFormatter)
     args = parser.parse_args(argv)
 
     formatter: Formatter
     if issubclass(args.formatter, HtmlFormatter):
-        formatter = args.formatter(auto_refresh=args.auto_refresh)
+        formatter = args.formatter(
+            auto_refresh=args.auto_refresh,
+            theme=args.theme,
+        )
     else:
         formatter = args.formatter()
 
