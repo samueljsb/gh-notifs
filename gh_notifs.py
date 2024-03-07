@@ -372,7 +372,14 @@ class HtmlFormatter:
   </head>
   <body class="bg-dark">
     <div class="container my-2 lh-1">
-      <span class="badge bg-secondary">{len(notifications)} unread notifications</span>
+    <div style="display: flex;">
+        <span class="badge bg-secondary">
+          {len(notifications)} unread notifications
+        </span>
+        <span class="badge text-bg-dark" style="margin-left: auto;">
+          last updated {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        </span>
+      </div>
       <ul class="list-group">
         {"".join(self._render_notification(notification) for notification in notifications)}
       </ul>
