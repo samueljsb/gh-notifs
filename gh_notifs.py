@@ -8,6 +8,7 @@ import json
 import logging
 import logging.config
 import os
+import shlex
 import subprocess
 from enum import Enum
 from typing import Any
@@ -469,6 +470,7 @@ class FilePrinter:
 
 def _gh_api(*query: str, paginate: bool = False) -> Any:
     if paginate:
+        logger.debug("gh api --paginated %s", shlex.join(query))
         try:
             data = subprocess.check_output(
                 ("gh", "api", "--paginate", *query),
@@ -480,6 +482,7 @@ def _gh_api(*query: str, paginate: bool = False) -> Any:
         else:
             data = data.replace("][", ",")  # join pages
     else:
+        logger.debug("gh api %s", shlex.join(query))
         try:
             data = subprocess.check_output(("gh", "api", *query), text=True)
         except subprocess.CalledProcessError as exc:
@@ -546,6 +549,7 @@ query($orgName: String!, $userLogin: String!) {
 
 
 async def _gh_api_async(*query: str) -> Any:
+    logger.debug("gh api %s", shlex.join(query))
     proc = await asyncio.create_subprocess_exec(
         *("gh", "api", *query),
         stdout=asyncio.subprocess.PIPE,
