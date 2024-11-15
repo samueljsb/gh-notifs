@@ -49,3 +49,10 @@ terminal window you can achieve the same thing with
 ```shell
 while true; do venv/bin/gh-notifs -Hf index.html; sleep 60; done &
 ```
+
+### Logging
+
+A log file is written to `$XDG_STATE_HOME/gh_notifs.log`
+(`~/.local/state/gh_notifs.log` by default).
+This contains more information than is printed to the console,
+including every API request made by the program.

@@ -5,8 +5,11 @@ import asyncio
 import base64
 import datetime
 import json
+import logging
+import logging.config
+import os
+import shlex
 import subprocess
-import sys
 from enum import Enum
 from typing import Any
 from typing import Collection
@@ -17,6 +20,50 @@ from typing import Protocol
 from typing import Sequence
 
 import humanize
+
+# -------
+# Logging
+# -------
+
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "plain": {
+                "format": "%(asctime)s: %(message)s",
+            },
+            "detailed": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
+        },
+        "handlers": {
+            "stderr": {
+                "class": "logging.StreamHandler",
+                "level": "INFO",
+                "formatter": "plain",
+            },
+            "file": {
+                "class": "logging.FileHandler",
+                "formatter": "detailed",
+                "filename": os.path.join(
+                    os.getenv("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
+                    "gh_notifs.log",
+                ),
+                "mode": "w",
+            },
+        },
+        "loggers": {
+            "gh_notifs": {
+                "level": "DEBUG",
+                "handlers": ["stderr", "file"],
+            },
+        },
+    }
+)
+
+logger = logging.getLogger("gh_notifs")
+
 
 # -------
 # Objects
@@ -413,7 +460,7 @@ class FilePrinter:
         with open(self.filepath, "w") as f:
             f.write(value)
 
-        print(f"{datetime.datetime.now()}: written to {self.filepath}", file=sys.stderr)
+        logger.info("written to %s", self.filepath)
 
 
 # ----------
@@ -423,21 +470,23 @@ class FilePrinter:
 
 def _gh_api(*query: str, paginate: bool = False) -> Any:
     if paginate:
+        logger.debug("gh api --paginated %s", shlex.join(query))
         try:
             data = subprocess.check_output(
                 ("gh", "api", "--paginate", *query),
                 text=True,
             )
         except subprocess.CalledProcessError as exc:
-            print(f"{datetime.datetime.now()}: {exc}", file=sys.stderr)
+            logger.exception(exc)
             raise SystemExit(exc.returncode) from exc
         else:
             data = data.replace("][", ",")  # join pages
     else:
+        logger.debug("gh api %s", shlex.join(query))
         try:
             data = subprocess.check_output(("gh", "api", *query), text=True)
         except subprocess.CalledProcessError as exc:
-            print(f"{datetime.datetime.now()}: {exc}", file=sys.stderr)
+            logger.exception(exc)
             raise SystemExit(exc.returncode) from exc
 
     return json.loads(data)
@@ -500,6 +549,7 @@ query($orgName: String!, $userLogin: String!) {
 
 
 async def _gh_api_async(*query: str) -> Any:
+    logger.debug("gh api %s", shlex.join(query))
     proc = await asyncio.create_subprocess_exec(
         *("gh", "api", *query),
         stdout=asyncio.subprocess.PIPE,
@@ -509,7 +559,12 @@ async def _gh_api_async(*query: str) -> Any:
     if await proc.wait():
         assert proc.stderr  # we pipe stderr to the Process object
         stderr = await proc.stderr.read()
-        print(f"{datetime.datetime.now()}: {stderr.decode()}", file=sys.stderr)
+        logger.error(
+            "Command %r returned non-zero exit status %s.",
+            ("gh", "api", *query),
+            proc.returncode,
+        )
+        logger.error(stderr.decode())
         raise SystemExit(proc.returncode)
 
     assert proc.stdout  # we pipe stdout to the Process object
