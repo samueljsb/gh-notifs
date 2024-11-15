@@ -5,8 +5,9 @@ import asyncio
 import base64
 import datetime
 import json
+import logging
+import logging.config
 import subprocess
-import sys
 from enum import Enum
 from typing import Any
 from typing import Collection
@@ -17,6 +18,38 @@ from typing import Protocol
 from typing import Sequence
 
 import humanize
+
+# -------
+# Logging
+# -------
+
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "plain": {
+                "format": "%(asctime)s: %(message)s",
+            },
+        },
+        "handlers": {
+            "stderr": {
+                "class": "logging.StreamHandler",
+                "level": "INFO",
+                "formatter": "plain",
+            },
+        },
+        "loggers": {
+            "gh_notifs": {
+                "level": "DEBUG",
+                "handlers": ["stderr"],
+            },
+        },
+    }
+)
+
+logger = logging.getLogger("gh_notifs")
+
 
 # -------
 # Objects
@@ -413,7 +446,7 @@ class FilePrinter:
         with open(self.filepath, "w") as f:
             f.write(value)
 
-        print(f"{datetime.datetime.now()}: written to {self.filepath}", file=sys.stderr)
+        logger.info("written to %s", self.filepath)
 
 
 # ----------
@@ -429,7 +462,7 @@ def _gh_api(*query: str, paginate: bool = False) -> Any:
                 text=True,
             )
         except subprocess.CalledProcessError as exc:
-            print(f"{datetime.datetime.now()}: {exc}", file=sys.stderr)
+            logger.error(str(exc))
             raise SystemExit(exc.returncode) from exc
         else:
             data = data.replace("][", ",")  # join pages
@@ -437,7 +470,7 @@ def _gh_api(*query: str, paginate: bool = False) -> Any:
         try:
             data = subprocess.check_output(("gh", "api", *query), text=True)
         except subprocess.CalledProcessError as exc:
-            print(f"{datetime.datetime.now()}: {exc}", file=sys.stderr)
+            logger.error(str(exc))
             raise SystemExit(exc.returncode) from exc
 
     return json.loads(data)
@@ -509,7 +542,7 @@ async def _gh_api_async(*query: str) -> Any:
     if await proc.wait():
         assert proc.stderr  # we pipe stderr to the Process object
         stderr = await proc.stderr.read()
-        print(f"{datetime.datetime.now()}: {stderr.decode()}", file=sys.stderr)
+        logger.error(stderr.decode())
         raise SystemExit(proc.returncode)
 
     assert proc.stdout  # we pipe stdout to the Process object
