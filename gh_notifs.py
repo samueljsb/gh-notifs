@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import logging.config
+import os
 import subprocess
 from enum import Enum
 from typing import Any
@@ -31,6 +32,9 @@ logging.config.dictConfig(
             "plain": {
                 "format": "%(asctime)s: %(message)s",
             },
+            "detailed": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
         },
         "handlers": {
             "stderr": {
@@ -38,11 +42,20 @@ logging.config.dictConfig(
                 "level": "INFO",
                 "formatter": "plain",
             },
+            "file": {
+                "class": "logging.FileHandler",
+                "formatter": "detailed",
+                "filename": os.path.join(
+                    os.getenv("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
+                    "gh_notifs.log",
+                ),
+                "mode": "w",
+            },
         },
         "loggers": {
             "gh_notifs": {
                 "level": "DEBUG",
-                "handlers": ["stderr"],
+                "handlers": ["stderr", "file"],
             },
         },
     }
