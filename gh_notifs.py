@@ -556,19 +556,18 @@ async def _gh_api_async(*query: str) -> Any:
         stderr=asyncio.subprocess.PIPE,
     )
 
-    if await proc.wait():
-        assert proc.stderr  # we pipe stderr to the Process object
-        stderr = await proc.stderr.read()
+    stdout, stderr = await proc.communicate()
+    exit_code = await proc.wait()
+
+    if exit_code:
         logger.error(
             "Command %r returned non-zero exit status %s.",
             ("gh", "api", *query),
-            proc.returncode,
+            exit_code,
         )
         logger.error(stderr.decode())
-        raise SystemExit(proc.returncode)
+        raise SystemExit(exit_code)
 
-    assert proc.stdout  # we pipe stdout to the Process object
-    stdout = await proc.stdout.read()
     return json.loads(stdout.decode())
 
 
